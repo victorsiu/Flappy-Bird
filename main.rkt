@@ -18,7 +18,7 @@
 (define pipe-body-height (/ window-height max-bodies-onscreen))
 (define pipe-opening-height 2) ;in bodies
 (define max-bodies-per-pipe (floor (* (- max-bodies-onscreen pipe-opening-height) 3/4)))
-(define dist-between-pipes 100)
+(define dist-between-pipes 150)
 
 ;images
 (define pipe-end
@@ -55,7 +55,7 @@
   (pipe window-width
         (* (+ num-top-bodies 1) pipe-body-height);Add 1 for the end of the pipe
         (make-pipe-img #f num-top-bodies)
-        (make-pipe-img #t (- max-bodies-onscreen pipe-opening-height num-top-bodies))))
+        (make-pipe-img #t (- max-bodies-onscreen pipe-opening-height num-top-bodies 2))))
 (define (init-state)
   (world-state 0
                (/ window-height 2)
@@ -67,7 +67,7 @@
 
 ;Callbacks
 (define (create-UFO-scene state)
-  (for/fold ([acc (place-image/align UFO
+  (define scene (for/fold ([acc (place-image/align UFO
                                      50
                                      (world-state-y state)
                                      "left"
@@ -79,6 +79,8 @@
        (~> acc
            (place-image/align top-img x 0 "left" "top" _)
            (place-image/align bot-img x window-height "left" "bottom" _))])))
+  (place-image/align (text (format "Score: ~a" (world-state-score state)) 32 "black")
+                     10 10 "left" "top" scene))
 
 (define (keypress state key)
   (match key
@@ -90,21 +92,28 @@
       (match state 
         [(struct* world-state
                   ([x x] [y y] [score score] [velocity velocity] [pipes pipes]))
+         (define pipe-removed #f)
+         (define pipes* (map (lambda (curr-pipe) (struct-copy pipe curr-pipe [x (- (pipe-x curr-pipe) 1)])) pipes))
+         (define pipes** (filter (lambda (x)
+                                   (define keep? ((+ (pipe-x x) pipe-body-width) . > . 0))
+                                   (unless keep?
+                                     (set! pipe-removed #t))
+                                   keep?)
+                                 pipes*))
+         
          (struct-copy world-state state
                       [x (+ x 1)]
                       [y (max (+ y velocity) 0)]
                       [velocity (min (+ velocity acceleration) term-velocity)]
                       [running ((+ y player-height) . < . window-height)]
                       [pipes (block
-                              (define pipes* (map (lambda (curr-pipe) (struct-copy pipe curr-pipe [x (- (pipe-x curr-pipe) 1)])) pipes))
-                              (define pipes** (filter (lambda (x) ((+ (pipe-x x) pipe-body-width) . > . 0)) pipes*))
-
                               (if (= (modulo x dist-between-pipes) 0)
                                    (cons (init-pipe) pipes**)
                                    pipes**))]
-                               
-                      [score score])]) ;TODO Update score
-      
+                      [score (if pipe-removed
+                                 (+ score 1)
+                                 score)])]) ;TODO Update score
+
       state))
 
 ;main loop
