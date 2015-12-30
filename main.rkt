@@ -6,6 +6,7 @@
          threading)
 
 ;TODO Tweak magic numbers
+(define flight-speed 2) ; TODO pipe generation currently uses modulo
 (define window-height 500)
 (define window-width 500)
 (define term-velocity 10)
@@ -30,6 +31,7 @@
                   "center"
                   (circle 10 "solid" "green")
                   (rectangle 40 4 "solid" "green")))
+
 ;image helpers
 ;make-pipe-img : boolean positive-integer -> image
 (define (make-pipe-img is-upwards num-bodies)
@@ -56,6 +58,7 @@
         (* (+ num-top-bodies 1) pipe-body-height);Add 1 for the end of the pipe
         (make-pipe-img #f num-top-bodies)
         (make-pipe-img #t (- max-bodies-onscreen pipe-opening-height num-top-bodies 2))))
+
 (define (init-state)
   (world-state 0
                (/ window-height 2)
@@ -63,7 +66,6 @@
                0
                #t
                '()))
-
 
 ;Callbacks
 (define (create-UFO-scene state)
@@ -89,23 +91,30 @@
 
 (define (update-state state)
   (if (world-state-running state)
-      (match state 
+      (match state
         [(struct* world-state
-                  ([x x] [y y] [score score] [velocity velocity] [pipes pipes]))
+                  ([x x] [y y] [score score] [velocity velocity] [pipes pipes] [running running]))
          (define pipe-removed #f)
-         (define pipes* (map (lambda (curr-pipe) (struct-copy pipe curr-pipe [x (- (pipe-x curr-pipe) 1)])) pipes))
+         (define pipes* (map (lambda (curr-pipe) (struct-copy pipe curr-pipe [x (- (pipe-x curr-pipe) flight-speed)])) pipes))
          (define pipes** (filter (lambda (x)
                                    (define keep? ((+ (pipe-x x) pipe-body-width) . > . 0))
                                    (unless keep?
                                      (set! pipe-removed #t))
                                    keep?)
                                  pipes*))
-         
          (struct-copy world-state state
-                      [x (+ x 1)]
+                      [x (+ x flight-speed)]
                       [y (max (+ y velocity) 0)]
                       [velocity (min (+ velocity acceleration) term-velocity)]
-                      [running ((+ y player-height) . < . window-height)]
+                      [running (for/fold ([running? ((+ y player-height) . < . window-height)])
+                                         ([p (in-list pipes**)])
+                                 (and running?
+                                      (or ((pipe-x p) . > . (+ 50 pipe-body-width))
+                                          ((+ (pipe-x p) pipe-body-width) . < . 50)
+                                          (and ((pipe-height p) . < . y)
+                                               ((+ (pipe-height p)
+                                                   (* 2 pipe-body-height))
+                                                . > . (+ y player-height))))))]
                       [pipes (block
                               (if (= (modulo x dist-between-pipes) 0)
                                    (cons (init-pipe) pipes**)
