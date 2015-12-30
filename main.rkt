@@ -8,7 +8,7 @@
 ;TODO Tweak magic numbers
 (define window-height 500)
 (define window-width 500)
-(define term-velocity 10) 
+(define term-velocity 10)
 (define space-velocity -10)
 (define acceleration 2)
 (define player-height 40) ;TODO If we make this the circle height, half gets cut off
@@ -67,13 +67,18 @@
 
 ;Callbacks
 (define (create-UFO-scene state)
-  (for/fold ([acc (underlay/xy (rectangle 100 100 "solid" "white") 50 (world-state-y state) UFO)])
+  (for/fold ([acc (place-image/align UFO
+                                     50
+                                     (world-state-y state)
+                                     "left"
+                                     "top"
+                                     (rectangle window-width window-height "solid" "white"))])
             ([p (in-list (world-state-pipes state))])
     (match p
       [(struct* pipe ([x x] [height height] [top-img top-img] [bot-img bot-img]))
        (~> acc
-           (underlay/offset x 0 top-img)
-           (underlay/align/offset "left" "bottom" _ x window-height bot-img))])))
+           (place-image/align top-img x 0 "left" "top" _)
+           (place-image/align bot-img x window-height "left" "bottom" _))])))
 
 (define (keypress state key)
   (match key
