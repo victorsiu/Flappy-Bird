@@ -69,18 +69,21 @@
 
 ;Callbacks
 (define (create-UFO-scene state)
-  (define scene (for/fold ([acc (place-image/align UFO
-                                     50
-                                     (world-state-y state)
-                                     "left"
-                                     "top"
-                                     (rectangle window-width window-height "solid" "white"))])
-            ([p (in-list (world-state-pipes state))])
-    (match p
-      [(struct* pipe ([x x] [height height] [top-img top-img] [bot-img bot-img]))
-       (~> acc
-           (place-image/align top-img x 0 "left" "top" _)
-           (place-image/align bot-img x window-height "left" "bottom" _))])))
+  (define scene
+    (if (world-state-running state)
+        (for/fold ([acc (place-image/align UFO
+                                           50
+                                           (world-state-y state)
+                                           "left"
+                                           "top"
+                                           (rectangle window-width window-height "solid" "white"))])
+                  ([p (in-list (world-state-pipes state))])
+          (match p
+            [(struct* pipe ([x x] [height height] [top-img top-img] [bot-img bot-img]))
+             (~> acc
+                 (place-image/align top-img x 0 "left" "top" _)
+                 (place-image/align bot-img x window-height "left" "bottom" _))]))
+        (rectangle window-width window-height "solid" "red")))
   (place-image/align (text (format "Score: ~a" (world-state-score state)) 32 "black")
                      10 10 "left" "top" scene))
 
